@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>Asterix Coder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Toastify CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet">
+  <!-- Cropper.js CSS -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .app-container {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    .sidebar {
+      width: 350px;
+      background: #f8f9fa;
+      border-left: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+    }
+    
+    @media (max-width: 768px) {
+      .app-container {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        transform: translateX(100%);
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 1000;
+        box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+      }
+      .sidebar.active {
+        transform: translateX(0);
+      }
+      .editor, .preview-sidebar {
+        width: 100%;
+        height: 50vh;
+      }
+      .toggle-sidebar {
+        display: block;
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1001;
+      }
+    }
+    
+    .toggle-sidebar {
+      display: none;
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    
+    .layers-list {
+      max-height: 150px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+    }
+    
+    .editor {
+      flex-grow: 1;
+      background: #fff;
+      padding: 15px;
+      overflow-y: auto;
+      border-left: 1px solid #ccc;
+    }
+    
+    .element {
+      border: 1px dashed transparent;
+      margin: 0.5rem 0;
+      padding: 5px;
+      cursor: move;
+      position: relative;
+      user-select: none;
+      background: white;
+      transition: all 0.2s ease;
+    }
+    
+    .element.selected {
+      border-color: #0d6efd;
+      background-color: #e7f1ff;
+    }
+    
+    .drag-handle {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      cursor: grab;
+      color: #6c757d;
+      font-size: 1rem;
+    }
+    
+    .preview-container {
+      border: 1px solid #ddd;
+      background: #fefefe;
+      height: 100%;
+      overflow-y: auto;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 5px;
+    }
+    
+    .text-left { text-align: left !important; }
+    .text-right { text-align: right !important; }
+    
+    .property-group {
+      margin-bottom: 1rem;
+    }
+    
+    .property-group label {
+      font-weight: 600;
+    }
+    
+    .btn-export, .btn-preview {
+      margin-top: 1rem;
+    }
+    
+    .layer-container {
+      min-height: 200px;
+      border: 1px solid #dee2e6;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 5px;
+    }
+    
+    .preview-window {
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    .device-frame {
+      border: 2px solid #333;
+      border-radius: 10px;
+      margin: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    .device-frame.phone { width: 320px; height: 568px; }
+    .device-frame.tablet { width: 768px; height: 1024px; }
+    .device-frame.desktop { width: 1200px; height: 800px; }
+    
+    .device-frame div { width: 100%; height: 100%; }
+    
+    .device-label {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .button-element:hover {
+      filter: brightness(90%);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    .cropper-container {
+      max-width: 100%;
+      max-height: 400px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+<button class="toggle-sidebar" id="toggleSidebar">
+  <i class="fa fa-bars"></i>
+</button>
+
+<div class="app-container">
+  <div class="sidebar" id="sidebar">
+    <h1>Asterix</h1>
+    <h5>الطبقات</h5>
+    <div class="layers-list mb-2" id="layersList"></div>
+    <button class="btn btn-sm btn-primary mb-3" id="addLayerBtn">
+      <i class="fa fa-plus"></i> إضافة طبقة جديدة
+    </button>
+    <button class="btn btn-sm btn-info mb-3" id="templateBtn">
+      <i class="fa fa-copy"></i> إنشاء من قالب
+    </button>
+    <button class="btn btn-sm btn-warning mb-3" id="undoBtn">
+      <i class="fa fa-undo"></i> تراجع
+    </button>
+    <button class="btn btn-sm btn-success mb-3" id="saveProjectBtn">
+      <i class="fa fa-save"></i> حفظ المشروع
+    </button>
+    <button class="btn btn-sm btn-secondary mb-3" id="loadProjectBtn">
+      <i class="fa fa-folder-open"></i> تحميل المشروع
+    </button>
+
+    <h6>عناصر للإضافة</h6>
+    <div class="elements-list mb-3">
+      <button class="btn btn-outline-secondary btn-sm" data-type="h1">
+        <i class="fa fa-heading"></i> عنوان
+      </button>
+      <button class="btn btn-outline-secondary btn-sm" data-type="p">
+        <i class="fa fa-paragraph"></i> فقرة
+      </button>
+      <button class="btn btn-outline-secondary btn-sm" data-type="button">
+        <i class="fa fa-square-up-right"></i> زر
+      </button>
+      <button class="btn btn-outline-secondary btn-sm" data-type="img">
+        <i class="fa fa-image"></i> صورة
+      </button>
+      <button class="btn btn-outline-secondary btn-sm" data-type="ul">
+        <i class="fa fa-list-ul"></i> قائمة غير مرتبة
+      </button>
+      <button class="btn btn-outline-secondary btn-sm" data-type="ol">
+        <i class="fa fa-list-ol"></i> قائمة مرتبة
+      </button>
+    </div>
+
+    <hr>
+
+    <div id="properties" style="display:none;">
+      <h6>خصائص العنصر المحدد</h6>
+
+      <div class="property-group">
+        <label for="textContentInput">النص / المحتوى:</label>
+        <textarea id="textContentInput" class="form-control" rows="2"></textarea>
+      </div>
+
+      <div class="property-group">
+        <label for="colorInput">لون النص:</label>
+        <input type="color" id="colorInput" class="form-control form-control-color">
+      </div>
+
+      <div class="property-group">
+        <label for="backgroundTypeSelect">نوع الخلفية:</label>
+        <select id="backgroundTypeSelect" class="form-select">
+          <option value="color">لون</option>
+          <option value="image">صورة</option>
+        </select>
+      </div>
+
+      <div class="property-group" id="backgroundColorGroup">
+        <label for="backgroundColorInput">لون الخلفية:</label>
+        <input type="color" id="backgroundColorInput" class="form-control form-control-color">
+      </div>
+
+      <div class="property-group" id="backgroundImageGroup" style="display:none;">
+        <label for="backgroundImageInput">رابط صورة الخلفية:</label>
+        <input type="text" id="backgroundImageInput" class="form-control">
+        <label for="backgroundUploadInput">رفع صورة خلفية:</label>
+        <input type="file" id="backgroundUploadInput" accept="image/*" class="form-control">
+        <label for="backgroundRepeatSelect">تكرار الخلفية:</label>
+        <select id="backgroundRepeatSelect" class="form-select">
+          <option value="repeat">تكرار</option>
+          <option value="no-repeat">بدون تكرار</option>
+        </select>
+        <label for="backgroundPositionSelect">موضع الخلفية:</label>
+        <select id="backgroundPositionSelect" class="form-select">
+          <option value="center">وسط</option>
+          <option value="top">أعلى</option>
+          <option value="bottom">أسفل</option>
+          <option value="left">يسار</option>
+          <option value="right">يمين</option>
+        </select>
+      </div>
+
+      <div class="property-group" id="alignmentGroup">
+        <label>محاذاة النص:</label>
+        <select id="alignmentSelect" class="form-select">
+          <option value="left">يسار</option>
+          <option value="right">يمين</option>
+        </select>
+      </div>
+
+      <div class="property-group" id="fontSizeGroup">
+        <label for="fontSizeInput">حجم الخط (px):</label>
+        <input type="number" id="fontSizeInput" min="8" max="72" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="widthInput">العرض (px):</label>
+        <input type="number" id="widthInput" min="50" max="1000" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="heightInput">الارتفاع (px):</label>
+        <input type="number" id="heightInput" min="50" max="1000" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="borderRadiusInput">نصف قطر الحدود (px):</label>
+        <input type="number" id="borderRadiusInput" min="0" max="100" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="borderStyleSelect">نمط الحدود:</label>
+        <select id="borderStyleSelect" class="form-select">
+          <option value="none">بدون</option>
+          <option value="solid">صلب</option>
+          <option value="dashed">متقطع</option>
+          <option value="dotted">منقط</option>
+          <option value="double">مزدوج</option>
+        </select>
+      </div>
+
+      <div class="property-group">
+        <label for="borderWidthInput">سمك الحدود (px):</label>
+        <input type="number" id="borderWidthInput" min="0" max="20" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="borderColorInput">لون الحدود:</label>
+        <input type="color" id="borderColorInput" class="form-control form-control-color">
+      </div>
+
+      <div class="property-group">
+        <label for="paddingTopInput">الهامش الداخلي العلوي (px):</label>
+        <input type="number" id="paddingTopInput" min="0" max="100" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="paddingBottomInput">الهامش الداخلي السفلي (px):</label>
+        <input type="number" id="paddingBottomInput" min="0" max="100" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="paddingLeftInput">الهامش الداخلي الأيسر (px):</label>
+        <input type="number" id="paddingLeftInput" min="0" max="100" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="paddingRightInput">الهامش الداخلي الأيمن (px):</label>
+        <input type="number" id="paddingRightInput" min="0" max="100" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="marginTopInput">الهامش الخارجي العلوي (px):</label>
+        <input type="number" id="marginTopInput" min="0" max="100" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="marginBottomInput">الهامش الخارجي السفلي (px):</label>
+        <input type="number" id="marginBottomInput" min="0" max="100" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="marginLeftInput">الهامش الخارجي الأيسر (px):</label>
+        <input type="number" id="marginLeftInput" min="0" max="100" class="form-control">
+      </div>
+
+      <div class="property-group">
+        <label for="marginRightInput">الهامش الخارجي الأيمن (px):</label>
+        <input type="number" id="marginRightInput" min="0" max="100" class="form-control">
+      </div>
+
+      <div class="property-group" id="buttonStyleGroup" style="display:none;">
+        <label for="buttonStyleSelect">نمط الزر:</label>
+        <select id="buttonStyleSelect" class="form-select">
+          <option value="primary">أساسي</option>
+          <option value="secondary">ثانوي</option>
+          <option value="success">نجاح</option>
+          <option value="danger">خطر</option>
+          <option value="outline-primary">حدود أساسي</option>
+          <option value="outline-secondary">حدود ثانوي</option>
+        </select>
+      </div>
+
+      <div class="property-group" id="linkGroup" style="display:none;">
+        <label for="linkUrlInput">رابط الزر:</label>
+        <input type="url" id="linkUrlInput" class="form-control" placeholder="https://example.com">
+      </div>
+
+      <div class="property-group" id="imgSrcGroup" style="display:none;">
+        <label for="imgSrcInput">رابط الصورة:</label>
+        <input type="text" id="imgSrcInput" class="form-control">
+      </div>
+
+      <div class="property-group" id="imgUploadGroup" style="display:none;">
+        <label for="imgUploadInput">رفع صورة من الجهاز:</label>
+        <input type="file" id="imgUploadInput" accept="image/*" class="form-control">
+        <div id="cropperContainer" class="cropper-container" style="display:none;"></div>
+        <button id="cropImageBtn" class="btn btn-primary btn-sm" style="display:none;">قص الصورة</button>
+      </div>
+
+      <div class="property-group" id="imgAspectRatioGroup" style="display:none;">
+        <label for="aspectRatioSelect">نسبة العرض إلى الارتفاع:</label>
+        <select id="aspectRatioSelect" class="form-select">
+          <option value="free">حر</option>
+          <option value="1/1">1:1</option>
+          <option value="4/3">4:3</option>
+          <option value="16/9">16:9</option>
+        </select>
+      </div>
+
+      <div class="property-group" id="listStyleGroup" style="display:none;">
+        <label for="listStyleSelect">نمط القائمة:</label>
+        <select id="listStyleSelect" class="form-select">
+          <option value="disc">دوائر</option>
+          <option value="circle">دوائر فارغة</option>
+          <option value="square">مربعات</option>
+          <option value="decimal">أرقام</option>
+          <option value="lower-alpha">حروف صغيرة</option>
+          <option value="upper-alpha">حروف كبيرة</option>
+        </select>
+      </div>
+
+      <div class="property-group" id="listItemsGroup" style="display:none;">
+        <label>عناصر القائمة:</label>
+        <div id="listItemsContainer"></div>
+        <button class="btn btn-sm btn-primary mt-2" id="addListItemBtn">إضافة عنصر</button>
+      </div>
+
+      <button class="btn btn-danger btn-sm" id="deleteBtn">
+        <i class="fa fa-trash"></i> حذف العنصر
+      </button>
+    </div>
+
+    <button class="btn btn-success btn-export" id="exportBtn">
+      <i class="fa fa-file-export"></i> تصدير الصفحة
+    </button>
+    <button class="btn btn-primary btn-preview" id="previewSeparateBtn">
+      <i class="fa fa-eye"></i> معاينة في صفحة منفصلة
+    </button>
+
+    <hr>
+
+    <div class="property-group">
+      <label for="langSelect">اختر اللغة / الاتجاه:</label>
+      <select id="langSelect" class="form-select">
+        <option value="ar" selected>العربية (RTL)</option>
+        <option value="en">English (LTR)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="editor" id="editor" tabindex="0" aria-label="منطقة تحرير الصفحة"></div>
+
+  <div class="sidebar preview-sidebar" style="width: 420px;">
+    <h5>معاينة الصفحة</h5>
+    <button class="btn btn-sm btn-info mb-2" id="refreshPreviewBtn">
+      <i class="fa fa-sync"></i> تحديث المعاينة
+    </button>
+    <div class="preview-container" id="preview"></div>
+  </div>
+</div>
+
+<!-- Toastify JS -->
+<script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+<!-- Cropper.js JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script>
+  // حالة التطبيق
+  const state = {
+    layers: [],
+    currentLayerId: null,
+    selectedElement: null,
+    draggedElement: null,
+    undoStack: [],
+    projects: JSON.parse(localStorage.getItem('projects')) || []
+  };
+
+  // عناصر DOM
+  const dom = {
+    toggleSidebar: document.getElementById('toggleSidebar'),
+    sidebar: document.getElementById('sidebar'),
+    layersList: document.getElementById('layersList'),
+    addLayerBtn: document.getElementById('addLayerBtn'),
+    templateBtn: document.getElementById('templateBtn'),
+    undoBtn: document.getElementById('undoBtn'),
+    saveProjectBtn: document.getElementById('saveProjectBtn'),
+    loadProjectBtn: document.getElementById('loadProjectBtn'),
+    editor: document.getElementById('editor'),
+    properties: document.getElementById('properties'),
+    textContentInput: document.getElementById('textContentInput'),
+    colorInput: document.getElementById('colorInput'),
+    backgroundTypeSelect: document.getElementById('backgroundTypeSelect'),
+    backgroundColorInput: document.getElementById('backgroundColorInput'),
+    backgroundColorGroup: document.getElementById('backgroundColorGroup'),
+    backgroundImageGroup: document.getElementById('backgroundImageGroup'),
+    backgroundImageInput: document.getElementById('backgroundImageInput'),
+    backgroundUploadInput: document.getElementById('backgroundUploadInput'),
+    backgroundRepeatSelect: document.getElementById('backgroundRepeatSelect'),
+    backgroundPositionSelect: document.getElementById('backgroundPositionSelect'),
+    alignmentSelect: document.getElementById('alignmentSelect'),
+    fontSizeInput: document.getElementById('fontSizeInput'),
+    widthInput: document.getElementById('widthInput'),
+    heightInput: document.getElementById('heightInput'),
+    borderRadiusInput: document.getElementById('borderRadiusInput'),
+    borderStyleSelect: document.getElementById('borderStyleSelect'),
+    borderWidthInput: document.getElementById('borderWidthInput'),
+    borderColorInput: document.getElementById('borderColorInput'),
+    paddingTopInput: document.getElementById('paddingTopInput'),
+    paddingBottomInput: document.getElementById('paddingBottomInput'),
+    paddingLeftInput: document.getElementById('paddingLeftInput'),
+    paddingRightInput: document.getElementById('paddingRightInput'),
+    marginTopInput: document.getElementById('marginTopInput'),
+    marginBottomInput: document.getElementById('marginBottomInput'),
+    marginLeftInput: document.getElementById('marginLeftInput'),
+    marginRightInput: document.getElementById('marginRightInput'),
+    buttonStyleGroup: document.getElementById('buttonStyleGroup'),
+    buttonStyleSelect: document.getElementById('buttonStyleSelect'),
+    linkGroup: document.getElementById('linkGroup'),
+    linkUrlInput: document.getElementById('linkUrlInput'),
+    imgSrcGroup: document.getElementById('imgSrcGroup'),
+    imgSrcInput: document.getElementById('imgSrcInput'),
+    imgUploadGroup: document.getElementById('imgUploadGroup'),
+    imgUploadInput: document.getElementById('imgUploadInput'),
+    cropperContainer: document.getElementById('cropperContainer'),
+    cropImageBtn: document.getElementById('cropImageBtn'),
+    aspectRatioSelect: document.getElementById('aspectRatioSelect'),
+    listStyleGroup: document.getElementById('listStyleGroup'),
+    listStyleSelect: document.getElementById('listStyleSelect'),
+    listItemsGroup: document.getElementById('listItemsGroup'),
+    listItemsContainer: document.getElementById('listItemsContainer'),
+    addListItemBtn: document.getElementById('addListItemBtn'),
+    deleteBtn: document.getElementById('deleteBtn'),
+    langSelect: document.getElementById('langSelect'),
+    preview: document.getElementById('preview'),
+    exportBtn: document.getElementById('exportBtn'),
+    previewSeparateBtn: document.getElementById('previewSeparateBtn'),
+    refreshPreviewBtn: document.getElementById('refreshPreviewBtn')
+  };
+
+  // متغيرات Cropper.js
+  let cropper = null;
+
+  // الأدوات المساعدة
+  const utils = {
+    generateId: () => 'id-' + Math.random().toString(36).substr(2, 9),
+    
+    clearPropertiesInputs: () => {
+      dom.textContentInput.value = '';
+      dom.colorInput.value = '#000000';
+      dom.backgroundTypeSelect.value = 'color';
+      dom.backgroundColorInput.value = '#ffffff';
+      dom.backgroundImageInput.value = '';
+      dom.backgroundRepeatSelect.value = 'no-repeat';
+      dom.backgroundPositionSelect.value = 'center';
+      dom.alignmentSelect.value = 'right';
+      dom.fontSizeInput.value = 20;
+      dom.widthInput.value = '';
+      dom.heightInput.value = '';
+      dom.borderRadiusInput.value = 0;
+      dom.borderStyleSelect.value = 'none';
+      dom.borderWidthInput.value = 0;
+      dom.borderColorInput.value = '#000000';
+      dom.paddingTopInput.value = 0;
+      dom.paddingBottomInput.value = 0;
+      dom.paddingLeftInput.value = 0;
+      dom.paddingRightInput.value = 0;
+      dom.marginTopInput.value = 0;
+      dom.marginBottomInput.value = 0;
+      dom.marginLeftInput.value = 0;
+      dom.marginRightInput.value = 0;
+      dom.buttonStyleSelect.value = 'primary';
+      dom.linkUrlInput.value = '';
+      dom.imgSrcInput.value = '';
+      dom.aspectRatioSelect.value = 'free';
+      dom.listStyleSelect.value = 'disc';
+      dom.listItemsContainer.innerHTML = '';
+    },
+    
+    confirmAction: (message) => confirm(message),
+    
+    showToast: (message, type = 'success') => {
+      Toastify({
+        text: message,
+        duration: 3000,
+        gravity: 'top',
+        position: 'center',
+        style: {
+          background: type === 'success' ? '#28a745' : '#dc3545'
+        }
+      }).showToast();
+    },
+    
+    debounce: (func, wait) => {
+      let timeout;
+      return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+  };
+
+  // إدارة الطبقات
+  const layerManager = {
+    createLayer: (name = 'طبقة جديدة') => {
+      const id = utils.generateId();
+      const newLayer = {
+        id,
+        name,
+        elements: []
+      };
+      
+      state.layers.push(newLayer);
+      state.currentLayerId = id;
+      
+      state.undoStack.push({ action: 'createLayer', layerId: id });
+      
+      renderer.renderLayersList();
+      renderer.renderEditor();
+      renderer.renderPreview();
+      elementManager.selectElement(null);
+      
+      utils.showToast('تم إنشاء طبقة جديدة');
+      return newLayer;
+    },
+    
+    renameLayer: (id, newName) => {
+      const layer = state.layers.find(l => l.id === id);
+      if (!layer) return;
+      const oldName = layer.name;
+      layer.name = newName;
+      state.undoStack.push({ action: 'renameLayer', layerId: id, oldName, newName });
+      renderer.renderLayersList();
+      utils.showToast('تم إعادة تسمية الطبقة');
+    },
+    
+    setCurrentLayer: (id) => {
+      state.currentLayerId = id;
+      renderer.renderLayersList();
+      renderer.renderEditor();
+      renderer.renderPreview();
+      elementManager.selectElement(null);
+    },
+    
+    deleteLayer: (id) => {
+      const index = state.layers.findIndex(l => l.id === id);
+      if (index === -1) return;
+      
+      state.undoStack.push({ action: 'deleteLayer', layer: { ...state.layers[index] } });
+      state.layers.splice(index, 1);
+      
+      if (state.layers.length > 0) {
+        state.currentLayerId = state.layers[0].id;
+      } else {
+        state.currentLayerId = null;
+      }
+      
+      renderer.renderLayersList();
+      renderer.renderEditor();
+      renderer.renderPreview();
+      elementManager.selectElement(null);
+      utils.showToast('تم حذف الطبقة');
+    }
+  };
+
+  // إدارة العناصر
+  const elementManager = {
+    addElement: (type) => {
+      if (!state.currentLayerId) {
+        utils.showToast('يرجى اختيار أو إنشاء طبقة أولاً', 'error');
+        return;
+      }
+      
+      const layer = state.layers.find(l => l.id === state.currentLayerId);
+      if (!layer) return;
+      
+      const defaultProps = {
+        h1: { text: 'عنوان رئيسي', fontSize: 24, alignment: 'right' },
+        p: { text: 'فقرة نصية', fontSize: 14, alignment: 'right' },
+        button: { text: 'زر جديد', fontSize: 16, alignment: 'right', width: 200, height: 40, borderRadius: 5, buttonStyle: 'primary' },
+        img: { src: '', alt: 'صورة', width: 300, height: 200, alignment: 'right', aspectRatio: 'free' },
+        ul: { items: ['عنصر 1', 'عنصر 2'], listStyle: 'disc', alignment: 'right' },
+        ol: { items: ['عنصر 1', 'عنصر 2'], listStyle: 'decimal', alignment: 'right' }
+      };
+      
+      const newElement = {
+        id: utils.generateId(),
+        type,
+        text: defaultProps[type]?.text || '',
+        color: '#000000',
+        backgroundType: 'color',
+        backgroundColor: '#ffffff',
+        backgroundImage: '',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+        alignment: defaultProps[type]?.alignment || 'right',
+        fontSize: defaultProps[type]?.fontSize || 14,
+        width: defaultProps[type]?.width || '',
+        height: defaultProps[type]?.height || '',
+        borderRadius: defaultProps[type]?.borderRadius || 0,
+        borderStyle: 'none',
+        borderWidth: 0,
+        borderColor: '#000000',
+        paddingTop: 0,
+        paddingBottom: 0,
+        paddingLeft: 0,
+        paddingRight: 0,
+        marginTop: 0,
+        marginBottom: 0,
+        marginLeft: 0,
+        marginRight: 0,
+        buttonStyle: defaultProps[type]?.buttonStyle || '',
+        link: '',
+        src: defaultProps[type]?.src || '',
+        alt: defaultProps[type]?.alt || '',
+        aspectRatio: defaultProps[type]?.aspectRatio || 'free',
+        items: defaultProps[type]?.items || [],
+        listStyle: defaultProps[type]?.listStyle || 'disc',
+        order: layer.elements.length
+      };
+      
+      layer.elements.push(newElement);
+      state.undoStack.push({ action: 'addElement', layerId: state.currentLayerId, element: { ...newElement } });
+      
+      renderer.renderEditor();
+      renderer.renderPreview();
+      elementManager.selectElement(newElement.id);
+      utils.showToast('تم إضافة عنصر جديد');
+    },
+    
+    deleteElement: (id) => {
+      const layer = state.layers.find(l => l.id === state.currentLayerId);
+      if (!layer) return;
+      
+      const index = layer.elements.findIndex(el => el.id === id);
+      if (index === -1) return;
+      
+      state.undoStack.push({ action: 'deleteElement', layerId: state.currentLayerId, element: { ...layer.elements[index] } });
+      layer.elements.splice(index, 1);
+      
+      renderer.renderEditor();
+      renderer.renderPreview();
+      elementManager.selectElement(null);
+      utils.showToast('تم حذف العنصر');
+    },
+    
+    selectElement: (id) => {
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+        dom.cropperContainer.innerHTML = '';
+        dom.cropperContainer.style.display = 'none';
+        dom.cropImageBtn.style.display = 'none';
+      }
+      
+      state.selectedElement = null;
+      utils.clearPropertiesInputs();
+      
+      document.querySelectorAll('.element').forEach(el => el.classList.remove('selected'));
+      
+      if (!id) {
+        dom.properties.style.display = 'none';
+        return;
+      }
+      
+      const layer = state.layers.find(l => l.id === state.currentLayerId);
+      if (!layer) return;
+      
+      const element = layer.elements.find(el => el.id === id);
+      if (!element) return;
+      
+      state.selectedElement = element;
+      dom.properties.style.display = 'block';
+      
+      dom.textContentInput.value = element.text || '';
+      dom.colorInput.value = element.color || '#000000';
+      dom.backgroundTypeSelect.value = element.backgroundType || 'color';
+      dom.backgroundColorInput.value = element.backgroundColor || '#ffffff';
+      dom.backgroundImageInput.value = element.backgroundImage || '';
+      dom.backgroundRepeatSelect.value = element.backgroundRepeat || 'no-repeat';
+      dom.backgroundPositionSelect.value = element.backgroundPosition || 'center';
+      dom.alignmentSelect.value = element.alignment || 'right';
+      dom.fontSizeInput.value = element.fontSize || (element.type === 'h1' ? 24 : 14);
+      dom.widthInput.value = element.width || '';
+      dom.heightInput.value = element.height || '';
+      dom.borderRadiusInput.value = element.borderRadius || 0;
+      dom.borderStyleSelect.value = element.borderStyle || 'none';
+      dom.borderWidthInput.value = element.borderWidth || 0;
+      dom.borderColorInput.value = element.borderColor || '#000000';
+      dom.paddingTopInput.value = element.paddingTop || 0;
+      dom.paddingBottomInput.value = element.paddingBottom || 0;
+      dom.paddingLeftInput.value = element.paddingLeft || 0;
+      dom.paddingRightInput.value = element.paddingRight || 0;
+      dom.marginTopInput.value = element.marginTop || 0;
+      dom.marginBottomInput.value = element.marginBottom || 0;
+      dom.marginLeftInput.value = element.marginLeft || 0;
+      dom.marginRightInput.value = element.marginRight || 0;
+      
+      dom.backgroundColorGroup.style.display = element.backgroundType === 'color' ? 'block' : 'none';
+      dom.backgroundImageGroup.style.display = element.backgroundType === 'image' ? 'block' : 'none';
+      
+      if (element.type === 'button') {
+        dom.buttonStyleGroup.style.display = 'block';
+        dom.linkGroup.style.display = 'block';
+        dom.buttonStyleSelect.value = element.buttonStyle || 'primary';
+        dom.linkUrlInput.value = element.link || '';
+      } else {
+        dom.buttonStyleGroup.style.display = 'none';
+        dom.linkGroup.style.display = 'none';
+      }
+      
+      if (element.type === 'img') {
+        dom.imgSrcGroup.style.display = 'block';
+        dom.imgUploadGroup.style.display = 'block';
+        dom.aspectRatioSelect.style.display = 'block';
+        dom.imgSrcInput.value = element.src || '';
+        dom.widthInput.value = element.width || 300;
+        dom.heightInput.value = element.height || 200;
+        dom.aspectRatioSelect.value = element.aspectRatio || 'free';
+      } else {
+        dom.imgSrcGroup.style.display = 'none';
+        dom.imgUploadGroup.style.display = 'none';
+        dom.aspectRatioSelect.style.display = 'none';
+      }
+      
+      if (element.type === 'ul' || element.type === 'ol') {
+        dom.listStyleGroup.style.display = 'block';
+        dom.listItemsGroup.style.display = 'block';
+        dom.listStyleSelect.value = element.listStyle || (element.type === 'ul' ? 'disc' : 'decimal');
+        renderer.renderListItems(element.items);
+      } else {
+        dom.listStyleGroup.style.display = 'none';
+        dom.listItemsGroup.style.display = 'none';
+      }
+      
+      const elDom = document.getElementById(id);
+      if (elDom) elDom.classList.add('selected');
+    },
+    
+    updateSelectedElement: utils.debounce(() => {
+      if (!state.selectedElement) return;
+      
+      const element = state.selectedElement;
+      const oldState = { ...element, items: [...(element.items || [])] };
+      
+      element.text = dom.textContentInput.value;
+      element.color = dom.colorInput.value;
+      element.backgroundType = dom.backgroundTypeSelect.value;
+      element.backgroundColor = dom.backgroundColorInput.value;
+      element.backgroundImage = dom.backgroundImageInput.value;
+      element.backgroundRepeat = dom.backgroundRepeatSelect.value;
+      element.backgroundPosition = dom.backgroundPositionSelect.value;
+      element.alignment = dom.alignmentSelect.value;
+      element.fontSize = parseInt(dom.fontSizeInput.value) || 20;
+      element.width = parseInt(dom.widthInput.value) || '';
+      element.height = parseInt(dom.heightInput.value) || '';
+      element.borderRadius = parseInt(dom.borderRadiusInput.value) || 0;
+      element.borderStyle = dom.borderStyleSelect.value;
+      element.borderWidth = parseInt(dom.borderWidthInput.value) || 0;
+      element.borderColor = dom.borderColorInput.value;
+      element.paddingTop = parseInt(dom.paddingTopInput.value) || 0;
+      element.paddingBottom = parseInt(dom.paddingBottomInput.value) || 0;
+      element.paddingLeft = parseInt(dom.paddingLeftInput.value) || 0;
+      element.paddingRight = parseInt(dom.paddingRightInput.value) || 0;
+      element.marginTop = parseInt(dom.marginTopInput.value) || 0;
+      element.marginBottom = parseInt(dom.marginBottomInput.value) || 0;
+      element.marginLeft = parseInt(dom.marginLeftInput.value) || 0;
+      element.marginRight = parseInt(dom.marginRightInput.value) || 0;
+      
+      if (element.type === 'button') {
+        if (dom.linkUrlInput.value && !/^(https?:\/\/)/i.test(dom.linkUrlInput.value)) {
+          utils.showToast('يرجى إدخال رابط صالح (يبدأ بـ http:// أو https://)', 'error');
+          return;
+        }
+        element.buttonStyle = dom.buttonStyleSelect.value;
+        element.link = dom.linkUrlInput.value;
+      }
+      
+      if (element.type === 'img') {
+        element.src = dom.imgSrcInput.value;
+        element.aspectRatio = dom.aspectRatioSelect.value;
+      }
+      
+      if (element.type === 'ul' || element.type === 'ol') {
+        element.listStyle = dom.listStyleSelect.value;
+      }
+      
+      state.undoStack.push({ action: 'updateElement', layerId: state.currentLayerId, elementId: element.id, oldState, newState: { ...element, items: [...(element.items || [])] } });
+      
+      renderer.renderEditor();
+      renderer.renderPreview();
+    }, 300),
+    
+    handleImageUpload: (event) => {
+      if (!state.selectedElement || state.selectedElement.type !== 'img') return;
+      
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      if (file.size > 2 * 1024 * 1024) {
+        utils.showToast('حجم الصورة يجب أن يكون أقل من 2 ميغابايت', 'error');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        dom.cropperContainer.innerHTML = '';
+        dom.cropperContainer.appendChild(img);
+        dom.cropperContainer.style.display = 'block';
+        dom.cropImageBtn.style.display = 'block';
+        
+        if (cropper) cropper.destroy();
+        
+        const aspectRatioMap = {
+          'free': NaN,
+          '1/1': 1,
+          '4/3': 4/3,
+          '16/9': 16/9
+        };
+        
+        cropper = new Cropper(img, {
+          aspectRatio: aspectRatioMap[state.selectedElement.aspectRatio || 'free'],
+          viewMode: 1,
+          autoCropArea: 0.8
+        });
+      };
+      reader.readAsDataURL(file);
+    },
+    
+    handleBackgroundImageUpload: (event) => {
+      if (!state.selectedElement) return;
+      
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      if (file.size > 2 * 1024 * 1024) {
+        utils.showToast('حجم صورة الخلفية يجب أن يكون أقل من 2 ميغابايت', 'error');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        state.selectedElement.backgroundImage = e.target.result;
+        dom.backgroundImageInput.value = e.target.result;
+        renderer.renderEditor();
+        renderer.renderPreview();
+        utils.showToast('تم رفع صورة الخلفية بنجاح');
+      };
+      reader.readAsDataURL(file);
+    },
+    
+    cropImage: () => {
+      if (!cropper || !state.selectedElement || state.selectedElement.type !== 'img') return;
+      
+      const croppedCanvas = cropper.getCroppedCanvas();
+      state.selectedElement.src = croppedCanvas.toDataURL();
+      dom.imgSrcInput.value = state.selectedElement.src;
+      
+      cropper.destroy();
+      cropper = null;
+      dom.cropperContainer.innerHTML = '';
+      dom.cropperContainer.style.display = 'none';
+      dom.cropImageBtn.style.display = 'none';
+      
+      renderer.renderEditor();
+      renderer.renderPreview();
+      utils.showToast('تم قص الصورة بنجاح');
+    }
+  };
+
+  // السحب والإفلات
+  const dragDropManager = {
+    init: () => {
+      dom.editor.addEventListener('dragstart', dragDropManager.handleDragStart);
+      dom.editor.addEventListener('dragover', dragDropManager.handleDragOver);
+      dom.editor.addEventListener('dragleave', dragDropManager.handleDragLeave);
+      dom.editor.addEventListener('drop', dragDropManager.handleDrop);
+      dom.editor.addEventListener('dragend', dragDropManager.handleDragEnd);
+    },
+    
+    handleDragStart: (e) => {
+      if (e.target.classList.contains('element')) {
+        state.draggedElement = e.target;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', e.target.outerHTML);
+        e.target.classList.add('dragging');
+      }
+    },
+    
+    handleDragOver: (e) => {
+      e.preventDefault();
+      if (e.target.classList.contains('element')) {
+        const target = e.target;
+        const bounding = target.getBoundingClientRect();
+        const offset = e.clientY - bounding.top;
+        const halfHeight = bounding.height / 2;
+        
+        if (offset > halfHeight) {
+          target.style.borderBottom = '2px solid #007bff';
+          target.style.borderTop = '';
+        } else {
+          target.style.borderTop = '2px solid #007bff';
+          target.style.borderBottom = '';
+        }
+      }
+    },
+    
+    handleDragLeave: (e) => {
+      if (e.target.classList.contains('element')) {
+        e.target.style.borderTop = '';
+        e.target.style.borderBottom = '';
+      }
+    },
+    
+    handleDrop: (e) => {
+      e.preventDefault();
+      if (e.target.classList.contains('element') && state.draggedElement) {
+        e.target.style.borderTop = '';
+        e.target.style.borderBottom = '';
+        
+        const layer = state.layers.find(l => l.id === state.currentLayerId);
+        if (!layer) return;
+        
+        const draggedId = state.draggedElement.id;
+        const targetId = e.target.id;
+        
+        const draggedIndex = layer.elements.findIndex(el => el.id === draggedId);
+        const targetIndex = layer.elements.findIndex(el => el.id === targetId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        
+        const bounding = e.target.getBoundingClientRect();
+        const offset = e.clientY - bounding.top;
+        const halfHeight = bounding.height / 2;
+        
+        const [draggedElement] = layer.elements.splice(draggedIndex, 1);
+        
+        if (offset > halfHeight) {
+          layer.elements.splice(targetIndex + 1, 0, draggedElement);
+        } else {
+          layer.elements.splice(targetIndex, 0, draggedElement);
+        }
+        
+        layer.elements.forEach((el, i) => el.order = i);
+        
+        state.undoStack.push({ action: 'reorderElements', layerId: state.currentLayerId, oldOrder: draggedIndex, newOrder: offset > halfHeight ? targetIndex + 1 : targetIndex });
+        
+        renderer.renderEditor();
+        renderer.renderPreview();
+        elementManager.selectElement(draggedElement.id);
+        utils.showToast('تم إعادة ترتيب العنصر');
+      }
+    },
+    
+    handleDragEnd: () => {
+      if (state.draggedElement) {
+        state.draggedElement.classList.remove('dragging');
+        state.draggedElement = null;
+      }
+    }
+  };
+
+  // العرض والتصيير
+  const renderer = {
+    renderLayersList: () => {
+      dom.layersList.innerHTML = '';
+      
+      state.layers.forEach(layer => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline-primary btn-sm';
+        btn.textContent = layer.name;
+        
+        if (layer.id === state.currentLayerId) {
+          btn.classList.add('active');
+        }
+        
+        btn.onclick = () => layerManager.setCurrentLayer(layer.id);
+        
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'btn btn-outline-warning btn-sm ms-2';
+        renameBtn.innerHTML = '<i class="fa fa-edit"></i>';
+        renameBtn.onclick = (e) => {
+          e.stopPropagation();
+          const newName = prompt('أدخل اسم الطبقة الجديد:', layer.name);
+          if (newName) {
+            layerManager.renameLayer(layer.id, newName);
+          }
+        };
+        
+        const saveTemplateBtn = document.createElement('button');
+        saveTemplateBtn.className = 'btn btn-outline-success btn-sm ms-2';
+        saveTemplateBtn.innerHTML = '<i class="fa fa-save"></i>';
+        saveTemplateBtn.onclick = (e) => {
+          e.stopPropagation();
+          const templateName = prompt('أدخل اسم القالب:', layer.name);
+          if (templateName) {
+            state.projects.push({ name: templateName, layer: { ...layer } });
+            localStorage.setItem('projects', JSON.stringify(state.projects));
+            utils.showToast('تم حفظ القالب');
+          }
+        };
+        
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn btn-outline-danger btn-sm ms-2';
+        delBtn.innerHTML = '<i class="fa fa-trash"></i>';
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (utils.confirmAction('هل تريد حذف هذه الطبقة؟')) {
+            layerManager.deleteLayer(layer.id);
+          }
+        };
+        
+        const container = document.createElement('div');
+        container.className = 'd-flex align-items-center mb-2';
+        container.appendChild(btn);
+        container.appendChild(renameBtn);
+        container.appendChild(saveTemplateBtn);
+        container.appendChild(delBtn);
+        
+        dom.layersList.appendChild(container);
+      });
+    },
+    
+    renderEditor: () => {
+      dom.editor.innerHTML = '';
+      
+      if (!state.currentLayerId) {
+        dom.editor.innerHTML = '<p class="text-muted">اختر طبقة أو أنشئ طبقة جديدة</p>';
+        return;
+      }
+      
+      const layer = state.layers.find(l => l.id === state.currentLayerId);
+      if (!layer) return;
+      
+      const container = document.createElement('div');
+      container.className = 'layer-container';
+      
+      layer.elements
+        .sort((a, b) => a.order - b.order)
+        .forEach(el => {
+          const elDiv = document.createElement('div');
+          elDiv.className = `element ${el.type === 'button' ? 'button-element' : ''}`;
+          elDiv.id = el.id;
+          elDiv.setAttribute('draggable', true);
+          elDiv.style.color = el.color;
+          elDiv.style.backgroundColor = el.backgroundType === 'color' ? el.backgroundColor : 'transparent';
+          elDiv.style.backgroundImage = el.backgroundType === 'image' && el.backgroundImage ? `url(${el.backgroundImage})` : 'none';
+          elDiv.style.backgroundRepeat = el.backgroundRepeat;
+          elDiv.style.backgroundPosition = el.backgroundPosition;
+          elDiv.style.textAlign = el.alignment;
+          elDiv.style.fontSize = el.fontSize + 'px';
+          elDiv.style.width = el.width ? el.width + 'px' : 'auto';
+          elDiv.style.height = el.height ? el.height + 'px' : 'auto';
+          elDiv.style.borderRadius = el.borderRadius + 'px';
+          elDiv.style.border = el.borderStyle === 'none' ? 'none' : `${el.borderWidth}px ${el.borderStyle} ${el.borderColor}`;
+          elDiv.style.paddingTop = el.paddingTop + 'px';
+          elDiv.style.paddingBottom = el.paddingBottom + 'px';
+          elDiv.style.paddingLeft = el.paddingLeft + 'px';
+          elDiv.style.paddingRight = el.paddingRight + 'px';
+          elDiv.style.marginTop = el.marginTop + 'px';
+          elDiv.style.marginBottom = el.marginBottom + 'px';
+          elDiv.style.marginLeft = el.marginLeft + 'px';
+          elDiv.style.marginRight = el.marginRight + 'px';
+          
+          const dragHandle = document.createElement('span');
+          dragHandle.className = 'drag-handle';
+          dragHandle.innerHTML = '<i class="fa fa-arrows-alt"></i>';
+          elDiv.appendChild(dragHandle);
+          
+          let contentElement;
+          switch (el.type) {
+            case 'h1':
+              contentElement = document.createElement('h1');
+              contentElement.textContent = el.text;
+              break;
+            case 'p':
+              contentElement = document.createElement('p');
+              contentElement.textContent = el.text;
+              break;
+            case 'button':
+              contentElement = document.createElement('button');
+              contentElement.className = `btn btn-${el.buttonStyle} btn-sm`;
+              contentElement.textContent = el.text;
+              contentElement.onclick = () => {
+                if (el.link) window.open(el.link, '_blank');
+              };
+              break;
+            case 'img':
+              if (el.src) {
+                contentElement = document.createElement('img');
+                contentElement.src = el.src;
+                contentElement.alt = el.alt;
+                contentElement.style.maxWidth = '100%';
+                contentElement.style.width = el.width ? el.width + 'px' : '100%';
+                contentElement.style.height = el.height ? el.height + 'px' : 'auto';
+              } else {
+                contentElement = document.createElement('div');
+                contentElement.className = 'text-muted';
+                contentElement.textContent = 'اضغط لتحديد صورة';
+              }
+              break;
+            case 'ul':
+            case 'ol':
+              contentElement = document.createElement(el.type);
+              contentElement.style.listStyleType = el.listStyle;
+              el.items.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item;
+                contentElement.appendChild(li);
+              });
+              break;
+            default:
+              contentElement = document.createElement('div');
+              contentElement.textContent = el.text;
+          }
+          
+          elDiv.appendChild(contentElement);
+          elDiv.onclick = (e) => {
+            e.stopPropagation();
+            elementManager.selectElement(el.id);
+          };
+          
+          container.appendChild(elDiv);
+        });
+      
+      dom.editor.appendChild(container);
+    },
+    
+    renderPreview: () => {
+      dom.preview.innerHTML = '';
+      
+      if (!state.currentLayerId) {
+        dom.preview.innerHTML = '<p class="text-muted">لا توجد طبقة محددة للمعاينة</p>';
+        return;
+      }
+      
+      const layer = state.layers.find(l => l.id === state.currentLayerId);
+      if (!layer) return;
+      
+      const previewDiv = document.createElement('div');
+      previewDiv.className = 'preview-layer';
+      
+      layer.elements
+        .sort((a, b) => a.order - b.order)
+        .forEach(el => {
+          const elDiv = document.createElement('div');
+          elDiv.style.color = el.color;
+          elDiv.style.backgroundColor = el.backgroundType === 'color' ? el.backgroundColor : 'transparent';
+          elDiv.style.backgroundImage = el.backgroundType === 'image' && el.backgroundImage ? `url(${el.backgroundImage})` : 'none';
+          elDiv.style.backgroundRepeat = el.backgroundRepeat;
+          elDiv.style.backgroundPosition = el.backgroundPosition;
+          elDiv.style.textAlign = el.alignment;
+          elDiv.style.fontSize = el.fontSize + 'px';
+          elDiv.style.width = el.width ? el.width + 'px' : 'auto';
+          elDiv.style.height = el.height ? el.height + 'px' : 'auto';
+          elDiv.style.borderRadius = el.borderRadius + 'px';
+          elDiv.style.border = el.borderStyle === 'none' ? 'none' : `${el.borderWidth}px ${el.borderStyle} ${el.borderColor}`;
+          elDiv.style.paddingTop = el.paddingTop + 'px';
+          elDiv.style.paddingBottom = el.paddingBottom + 'px';
+          elDiv.style.paddingLeft = el.paddingLeft + 'px';
+          elDiv.style.paddingRight = el.paddingRight + 'px';
+          elDiv.style.marginTop = el.marginTop + 'px';
+          elDiv.style.marginBottom = el.marginBottom + 'px';
+          elDiv.style.marginLeft = el.marginLeft + 'px';
+          elDiv.style.marginRight = el.marginRight + 'px';
+          
+          let contentElement;
+          switch (el.type) {
+            case 'h1':
+              contentElement = document.createElement('h1');
+              contentElement.textContent = el.text;
+              break;
+            case 'p':
+              contentElement = document.createElement('p');
+              contentElement.textContent = el.text;
+              break;
+            case 'button':
+              contentElement = document.createElement('button');
+              contentElement.className = `btn btn-${el.buttonStyle} btn-sm`;
+              contentElement.textContent = el.text;
+              contentElement.onclick = () => {
+                if (el.link) window.open(el.link, '_blank');
+              };
+              break;
+            case 'img':
+              if (el.src) {
+                contentElement = document.createElement('img');
+                contentElement.src = el.src;
+                contentElement.alt = el.alt;
+                contentElement.style.maxWidth = '100%';
+                contentElement.style.width = el.width ? el.width + 'px' : '100%';
+                contentElement.style.height = el.height ? el.height + 'px' : 'auto';
+              } else {
+                contentElement = document.createElement('div');
+                contentElement.className = 'text-muted';
+                contentElement.textContent = 'صورة غير محددة';
+              }
+              break;
+            case 'ul':
+            case 'ol':
+              contentElement = document.createElement(el.type);
+              contentElement.style.listStyleType = el.listStyle;
+              el.items.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item;
+                contentElement.appendChild(li);
+              });
+              break;
+            default:
+              contentElement = document.createElement('div');
+              contentElement.textContent = el.text;
+          }
+          
+          elDiv.appendChild(contentElement);
+          previewDiv.appendChild(elDiv);
+        });
+      
+      dom.preview.appendChild(previewDiv);
+    },
+    
+    renderListItems: (items) => {
+      dom.listItemsContainer.innerHTML = '';
+      
+      items.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'input-group mb-2';
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control';
+        input.value = item;
+        input.oninput = () => {
+          state.selectedElement.items[index] = input.value;
+          renderer.renderEditor();
+          renderer.renderPreview();
+        };
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-outline-danger';
+        deleteBtn.innerHTML = '<i class="fa fa-trash"></i>';
+        deleteBtn.onclick = () => {
+          state.selectedElement.items.splice(index, 1);
+          renderer.renderListItems(state.selectedElement.items);
+          renderer.renderEditor();
+          renderer.renderPreview();
+          utils.showToast('تم حذف عنصر القائمة');
+        };
+        
+        itemDiv.appendChild(input);
+        itemDiv.appendChild(deleteBtn);
+        dom.listItemsContainer.appendChild(itemDiv);
+      });
+    }
+  };
+
+  // إدارة الأحداث
+  const eventManager = {
+    init: () => {
+      dom.textContentInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.colorInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.backgroundTypeSelect.addEventListener('change', () => {
+        const type = dom.backgroundTypeSelect.value;
+        dom.backgroundColorGroup.style.display = type === 'color' ? 'block' : 'none';
+        dom.backgroundImageGroup.style.display = type === 'image' ? 'block' : 'none';
+        elementManager.updateSelectedElement();
+      });
+      dom.backgroundColorInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.backgroundImageInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.backgroundUploadInput.addEventListener('change', elementManager.handleBackgroundImageUpload);
+      dom.backgroundRepeatSelect.addEventListener('change', elementManager.updateSelectedElement);
+      dom.backgroundPositionSelect.addEventListener('change', elementManager.updateSelectedElement);
+      dom.alignmentSelect.addEventListener('change', elementManager.updateSelectedElement);
+      dom.fontSizeInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.widthInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.heightInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.borderRadiusInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.borderStyleSelect.addEventListener('change', elementManager.updateSelectedElement);
+      dom.borderWidthInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.borderColorInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.paddingTopInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.paddingBottomInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.paddingLeftInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.paddingRightInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.marginTopInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.marginBottomInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.marginLeftInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.marginRightInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.buttonStyleSelect.addEventListener('change', elementManager.updateSelectedElement);
+      dom.linkUrlInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.imgSrcInput.addEventListener('input', elementManager.updateSelectedElement);
+      dom.imgUploadInput.addEventListener('change', elementManager.handleImageUpload);
+      dom.cropImageBtn.addEventListener('click', elementManager.cropImage);
+      dom.aspectRatioSelect.addEventListener('change', () => {
+        if (cropper && state.selectedElement && state.selectedElement.type === 'img') {
+          const aspectRatioMap = {
+            'free': NaN,
+            '1/1': 1,
+            '4/3': 4/3,
+            '16/9': 16/9
+          };
+          cropper.setAspectRatio(aspectRatioMap[dom.aspectRatioSelect.value]);
+        }
+        elementManager.updateSelectedElement();
+      });
+      dom.listStyleSelect.addEventListener('change', elementManager.updateSelectedElement);
+      
+      dom.addListItemBtn.addEventListener('click', () => {
+        if (!state.selectedElement || !['ul', 'ol'].includes(state.selectedElement.type)) return;
+        state.selectedElement.items.push('عنصر جديد');
+        renderer.renderListItems(state.selectedElement.items);
+        renderer.renderEditor();
+        renderer.renderPreview();
+        utils.showToast('تم إضافة عنصر قائمة جديد');
+      });
+      
+      dom.deleteBtn.addEventListener('click', () => {
+        if (!state.selectedElement) return;
+        if (utils.confirmAction('هل أنت متأكد من حذف هذا العنصر؟')) {
+          elementManager.deleteElement(state.selectedElement.id);
+        }
+      });
+      
+      dom.addLayerBtn.addEventListener('click', () => {
+        const name = prompt('أدخل اسم الطبقة الجديدة:', 'طبقة جديدة');
+        if (name) {
+          layerManager.createLayer(name);
+        }
+      });
+      
+      dom.templateBtn.addEventListener('click', () => {
+        const name = prompt('أدخل اسم الطبقة الجديدة:', 'طبقة القالب');
+        if (name) {
+          const layer = layerManager.createLayer(name);
+          layer.elements = [
+            { id: utils.generateId(), type: 'h1', text: 'عنوان رئيسي', color: '#000000', backgroundType: 'color', backgroundColor: '#ffffff', alignment: 'right', fontSize: 32, width: '', height: '', borderRadius: 0, borderStyle: 'none', borderWidth: 0, borderColor: '#000000', paddingTop: 10, paddingBottom: 10, paddingLeft: 10, paddingRight: 10, marginTop: 10, marginBottom: 10, marginLeft: 10, marginRight: 10, order: 0 },
+            { id: utils.generateId(), type: 'p', text: 'هذه فقرة نصية نموذجية.', color: '#333333', backgroundType: 'color', backgroundColor: '#ffffff', alignment: 'right', fontSize: 16, width: '', height: '', borderRadius: 0, borderStyle: 'none', borderWidth: 0, borderColor: '#000000', paddingTop: 10, paddingBottom: 10, paddingLeft: 10, paddingRight: 10, marginTop: 10, marginBottom: 10, marginLeft: 10, marginRight: 10, order: 1 },
+            { id: utils.generateId(), type: 'button', text: 'اضغط هنا', color: '#ffffff', backgroundType: 'color', backgroundColor: '#007bff', alignment: 'right', fontSize: 16, width: 200, height: 40, borderRadius: 5, borderStyle: 'solid', borderWidth: 1, borderColor: '#0056b3', paddingTop: 5, paddingBottom: 5, paddingLeft: 10, paddingRight: 10, marginTop: 10, marginBottom: 10, marginLeft: 10, marginRight: 10, buttonStyle: 'primary', link: 'https://example.com', order: 2 },
+            { id: utils.generateId(), type: 'ul', items: ['عنصر 1', 'عنصر 2', 'عنصر 3'], listStyle: 'disc', color: '#000000', backgroundType: 'color', backgroundColor: '#ffffff', alignment: 'right', fontSize: 16, width: '', height: '', borderRadius: 0, borderStyle: 'none', borderWidth: 0, borderColor: '#000000', paddingTop: 10, paddingBottom: 10, paddingLeft: 10, paddingRight: 10, marginTop: 10, marginBottom: 10, marginLeft: 10, marginRight: 10, order: 3 }
+          ];
+          renderer.renderEditor();
+          renderer.renderPreview();
+          utils.showToast('تم إنشاء طبقة من القالب');
+        }
+      });
+      
+      dom.undoBtn.addEventListener('click', () => {
+        const lastAction = state.undoStack.pop();
+        if (!lastAction) {
+          utils.showToast('لا توجد إجراءات للتراجع عنها', 'error');
+          return;
+        }
+        
+        if (lastAction.action === 'createLayer') {
+          layerManager.deleteLayer(lastAction.layerId);
+        } else if (lastAction.action === 'deleteLayer') {
+          state.layers.push(lastAction.layer);
+          state.currentLayerId = lastAction.layer.id;
+        } else if (lastAction.action === 'addElement') {
+          const layer = state.layers.find(l => l.id === lastAction.layerId);
+          const index = layer.elements.findIndex(el => el.id === lastAction.element.id);
+          layer.elements.splice(index, 1);
+        } else if (lastAction.action === 'deleteElement') {
+          const layer = state.layers.find(l => l.id === lastAction.layerId);
+          layer.elements.push(lastAction.element);
+        } else if (lastAction.action === 'updateElement') {
+          const layer = state.layers.find(l => l.id === lastAction.layerId);
+          const element = layer.elements.find(el => el.id === lastAction.elementId);
+          Object.assign(element, lastAction.oldState);
+        } else if (lastAction.action === 'reorderElements') {
+          const layer = state.layers.find(l => l.id === lastAction.layerId);
+          const [element] = layer.elements.splice(lastAction.newOrder, 1);
+          layer.elements.splice(lastAction.oldOrder, 0, element);
+          layer.elements.forEach((el, i) => el.order = i);
+        }
+        
+        renderer.renderLayersList();
+        renderer.renderEditor();
+        renderer.renderPreview();
+        elementManager.selectElement(null);
+        utils.showToast('تم التراجع عن الإجراء');
+      });
+      
+      dom.saveProjectBtn.addEventListener('click', () => {
+        const projectName = prompt('أدخل اسم المشروع:');
+        if (projectName) {
+          state.projects.push({ name: projectName, layers: [...state.layers], currentLayerId: state.currentLayerId });
+          localStorage.setItem('projects', JSON.stringify(state.projects));
+          utils.showToast('تم حفظ المشروع');
+        }
+      });
+      
+      dom.loadProjectBtn.addEventListener('click', () => {
+        if (state.projects.length === 0) {
+          utils.showToast('لا توجد مشاريع محفوظة', 'error');
+          return;
+        }
+        
+        const projectNames = state.projects.map(p => p.name).join('\n');
+        const projectName = prompt('أدخل اسم المشروع لتحميله:\n' + projectNames);
+        if (projectName) {
+          const project = state.projects.find(p => p.name === projectName);
+          if (project) {
+            state.layers = [...project.layers];
+            state.currentLayerId = project.currentLayerId;
+            renderer.renderLayersList();
+            renderer.renderEditor();
+            renderer.renderPreview();
+            elementManager.selectElement(null);
+            utils.showToast('تم تحميل المشروع');
+          } else {
+            utils.showToast('المشروع غير موجود', 'error');
+          }
+        }
+      });
+      
+      dom.langSelect.addEventListener('change', () => {
+        const lang = dom.langSelect.value;
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        renderer.renderEditor();
+        renderer.renderPreview();
+      });
+      
+      dom.exportBtn.addEventListener('click', eventManager.exportPage);
+      dom.previewSeparateBtn.addEventListener('click', eventManager.previewInSeparatePage);
+      dom.refreshPreviewBtn.addEventListener('click', () => {
+        renderer.renderPreview();
+        utils.showToast('تم تحديث المعاينة');
+      });
+      
+      dom.editor.addEventListener('click', (e) => {
+        if (e.target === dom.editor) {
+          elementManager.selectElement(null);
+        }
+      });
+      
+      dom.toggleSidebar.addEventListener('click', () => {
+        dom.sidebar.classList.toggle('active');
+      });
+      
+      document.querySelectorAll('.elements-list button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const type = btn.dataset.type;
+          elementManager.addElement(type);
+        });
+      });
+      
+      dragDropManager.init();
+    },
+    
+    exportPage: () => {
+      if (!state.currentLayerId) {
+        utils.showToast('لا توجد طبقة نشطة للتصدير', 'error');
+        return;
+      }
+      
+      const layer = state.layers.find(l => l.id === state.currentLayerId);
+      if (!layer || layer.elements.length === 0) {
+        utils.showToast('الطبقة الحالية لا تحتوي على عناصر', 'error');
+        return;
+      }
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="${dom.langSelect.value}" dir="${dom.langSelect.value === 'ar' ? 'rtl' : 'ltr'}">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>${layer.name}</title>
+          <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+          <style>
+            body { padding: 20px; }
+            .preview-layer > div { margin-bottom: 15px; }
+            .btn:hover { filter: brightness(90%); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            ${dom.preview.innerHTML}
+          </div>
+        </body>
+        </html>
+      `;
+      
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${layer.name.replace(/\s+/g, '_')}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      utils.showToast('تم تصدير الصفحة بنجاح');
+    },    previewInSeparatePage: () => {
+      if (!state.currentLayerId) {
+        utils.showToast('لا توجد طبقة نشطة للمعاينة', 'error');
+        return;
+      }
+      
+      const layer = state.layers.find(l => l.id === state.currentLayerId);
+      if (!layer || layer.elements.length === 0) {
+        utils.showToast('الطبقة الحالية لا تحتوي على عناصر', 'error');
+        return;
+      }
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="${dom.langSelect.value}" dir="${dom.langSelect.value === 'ar' ? 'rtl' : 'ltr'}">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>معاينة ${layer.name}</title>
+          <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+          <style>
+            body { padding: 20px; background: #f5f5f5; }
+            .preview-layer > div { margin-bottom: 15px; }
+            .btn:hover { filter: brightness(90%); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+            .device-frame { margin: 20px auto; }
+            .device-label { font-size: 1.2rem; margin-top: 10px; }
+            .phone { max-width: 320px; }
+            .tablet { max-width: 768px; }
+            .desktop { max-width: 1200px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h3>معاينة على أجهزة مختلفة</h3>
+            <div class="device-label">هاتف</div>
+            <div class="device-frame phone">
+              <div class="preview-layer">${dom.preview.innerHTML}</div>
+            </div>
+            <div class="device-label">تابلت</div>
+            <div class="device-frame tablet">
+              <div class="preview-layer">${dom.preview.innerHTML}</div>
+            </div>
+            <div class="device-label">حاسوب</div>
+            <div class="device-frame desktop">
+              <div class="preview-layer">${dom.preview.innerHTML}</div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+      
+      const previewWindow = window.open('', '_blank');
+      if (previewWindow) {
+        previewWindow.document.write(htmlContent);
+        previewWindow.document.close();
+        utils.showToast('تم فتح المعاينة في صفحة جديدة');
+      } else {
+        utils.showToast('يرجى السماح بفتح النوافذ المنبثقة', 'error');
+      }
+    }
+  };
+
+  // تهيئة التطبيق
+  const initApp = () => {
+    eventManager.init();
+    renderer.renderLayersList();
+    renderer.renderEditor();
+    renderer.renderPreview();
+    
+    // إنشاء طبقة افتراضية عند بدء التطبيق
+    if (state.layers.length === 0) {
+      layerManager.createLayer('طبقة افتراضية');
+    }
+  };
+
+  // تشغيل التطبيق عند تحميل الصفحة
+  document.addEventListener('DOMContentLoaded', initApp);
+</script>
+</body>
+</html>
