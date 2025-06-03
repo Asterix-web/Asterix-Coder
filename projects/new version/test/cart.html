@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Al Jawhara Market | Fresh Food & Groceries</title>
+  <meta name="description" content="Welcome to Al Jawhara Market! Your trusted source for fresh food, quality groceries, dairy products, snacks, beverages, and daily essentials at affordable prices.">
+  <meta name="keywords" content="Al Jawhara Market, groceries, fresh food, dairy products, snacks, beverages, fruits, vegetables, bakery, grocery store, food market, local market, quality food, affordable prices">
+  <meta name="author" content="Al Jawhara Market Team">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:title" content="Al Jawhara Market | Fresh Food & Groceries">
+  <meta property="og:description" content="Discover the best selection of groceries, fresh food, snacks, and essentials at Al Jawhara Market. Quality products at unbeatable prices!">
+  <meta property="og:image" content="https://yourdomain.com/images/al-jawhara-market-og.jpg">
+  <meta property="og:url" content="https://yourdomain.com/">
+  <meta property="og:type" content="website">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Al Jawhara Market | Fresh Food & Groceries">
+  <meta name="twitter:description" content="Shop your daily groceries and fresh food at Al Jawhara Market. Where quality meets value.">
+  <meta name="twitter:image" content="https://yourdomain.com/images/al-jawhara-market-twitter.jpg">
+  
+
+  <!-- Favicon -->
+  <link rel="icon" href="https://yourdomain.com/images/jawhara-icon.png" type="image/png">
+
+  <link rel="stylesheet" href="CSS/style.css">
+  <link rel="stylesheet" href="CSS/style copy.css">
+  <link rel="stylesheet" href="CSS/bootstrap.min.css">
+</head>
+
+
+<body>
+
+
+<header>
+    
+  <!-- Topbar start -->
+  <div class="container-fluid ">
+    <div class="container topbar d-none d-lg-block">
+    </div>
+    <div class="container">
+        <nav class="navbar navbar-light navbar-expand-lg py-3">
+            <a href="index.html" class="navbar-brand">
+                <h1 class="mb-0">Cart seystem</h1>
+            </a>
+              </div>
+              <h1 id="category-title">cart</h1>
+        </nav>
+    </div>
+</div>
+<!-- Topbar End -->
+</header>
+<body>
+
+  <center>
+    <div class="cart-content" id="cartContent">
+      <h3>🛒 سلة المشتريات</h3>
+      <ul id="cart-items"></ul>
+      <p id="total">الإجمالي: 0 جنيه</p>
+      <button class="buy" onclick="buyNow('${item.name}, ${item.price}')">شراء</button>
+    </div>
+  </center>
+
+
+  <script>
+    
+function buyNow() {
+let formContainer = document.getElementById("checkoutForm");
+
+// تجهيز نص المنتجات
+let productDetails = "";
+let totalPrice = 0;
+
+cart.forEach(item => {
+productDetails += `${item.name} × ${item.quantity} = ${item.price * item.quantity} جنيه\n`;
+totalPrice += item.price * item.quantity;
+});
+
+if (!formContainer) {
+formContainer = document.createElement("div");
+formContainer.id = "checkoutForm";
+formContainer.style.display = "block";
+formContainer.style.marginTop = "20px";
+formContainer.style.padding = "15px";
+formContainer.style.border = "1px solid #ccc";
+formContainer.style.background = "#f9f9f9";
+
+formContainer.innerHTML = `
+<center>
+  <h2>Checkout</h2>
+  <form id="purchaseForm">
+      <label>Name:</label>
+      <input placeholder="Enter your name" type="text" id="name" required> <br><br>
+      <label>Address:</label>
+      <input placeholder="Enter your address" type="text" id="address" required> <br><br>
+      <label>Phone:</label>
+      <input placeholder="Enter your phone number" type="tel" id="phone" required> <br><br>
+      <label>Email:</label>
+      <input placeholder="Enter your email" type="email"> <br><br>
+      <label>Products:</label>
+      <textarea id="productInput" readonly rows="5"></textarea> <br><br>
+      <label>Total Price:</label>
+      <input type="text" id="priceInput" readonly> <br><br>
+      <input type="submit" value="Confirm Purchase">
+      <input type="button" value="Cancel" onclick="document.getElementById('checkoutForm').style.display = 'none'">
+  </form>
+</center>
+`;
+
+document.body.appendChild(formContainer);
+document.getElementById("purchaseForm").addEventListener("submit", confirmPurchase);
+}
+
+document.getElementById("productInput").value = productDetails;
+document.getElementById("priceInput").value = totalPrice + " جنيه";
+formContainer.style.display = "block";
+}
+
+
+function confirmPurchase(event) {
+event.preventDefault();
+
+const customerName = document.getElementById("name").value;
+const address = document.getElementById("address").value;
+const phone = document.getElementById("phone").value;
+const products = document.getElementById("productInput").value;
+const total = document.getElementById("priceInput").value;
+
+if (!customerName || !address || !phone) {
+alert("Please fill in all required fields.");
+return;
+}
+
+const formData = {
+name: customerName,
+address: address,
+phone: phone,
+products: products,
+total: total
+};
+
+fetch("https://formspree.io/f/mgvewbgd", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(formData)
+})
+.then(response => {
+if (response.ok) {
+  alert("تم تأكيد الشراء! شكراً لك، " + customerName);
+  document.getElementById("purchaseForm").reset();
+  document.getElementById("checkoutForm").style.display = "none";
+} else {
+  alert("حدث خطأ أثناء الإرسال. حاول مرة أخرى.");
+}
+})
+.catch(error => {
+console.error("Error:", error);
+alert("حدث خطأ. حاول لاحقاً.");
+});
+}
+  </script>
+    <script src="JS/data.js"></script>
+    <script src="JS/script.js"></script>
+    <script src="JS/cart.js"></script>
+</body>
+</html>
